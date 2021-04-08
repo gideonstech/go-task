@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
 	"golang.org/x/text/language"
 	"sync"
 	"time"
@@ -44,5 +47,32 @@ func NewTranslatorService(t Translator) *TranslatorService {
 //this implements caching and retry mechanism
 //this is created just to avoid changing the main.go file
 func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag, data string) (string, error) {
-	return t.Translator.Translate(ctx, from, to, data)
+
+	key := getTranslateKey(from.String(), to.String(), data)
+
+	//check if same query exist in cache
+	// key is a md5(from,to,data)
+	if out, ok := t.cache[key]; ok {
+		return out, nil
+	}
+
+	//call translate service if query is not found in cache
+	out, err := t.Translator.Translate(ctx, from, to, data)
+	if err != nil {
+		return "", err
+	}
+
+	//update cache once data is successfully translated
+	t.Lock()
+	t.cache[key] = out
+	t.Unlock()
+
+	return out, nil
+}
+
+// generates a md5 hash with from,to language and data string
+// this md5 hash is used as a key for caching
+func getTranslateKey(from string, to string, data string) string {
+	md5KeyHash := md5.Sum([]byte(fmt.Sprintf("%s-%s-%s", from, to, data)))
+	return hex.EncodeToString(md5KeyHash[:])
 }
