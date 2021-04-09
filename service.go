@@ -48,7 +48,7 @@ const (
 	BackoffTime = 2
 )
 
-//this is a wrapper method around translation service
+// Translate is a wrapper method around translation service
 //this implements caching and retry mechanism
 //this is created just to avoid changing the main.go file
 func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag, data string) (string, error) {
