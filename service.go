@@ -43,6 +43,11 @@ func NewTranslatorService(t Translator) *TranslatorService {
 	}
 }
 
+const (
+	MaxRetries  = 5
+	BackoffTime = 2
+)
+
 //this is a wrapper method around translation service
 //this implements caching and retry mechanism
 //this is created just to avoid changing the main.go file
@@ -56,18 +61,30 @@ func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag
 		return out, nil
 	}
 
-	//call translate service if query is not found in cache
-	out, err := t.Translator.Translate(ctx, from, to, data)
-	if err != nil {
-		return "", err
+	retryCount := 0
+
+	for {
+		//call translate service if query is not found in cache
+		out, err := t.Translator.Translate(ctx, from, to, data)
+		if err != nil {
+			//retry for max number of times
+			if retryCount < MaxRetries {
+				retryCount++
+				//exponential backoff before retrying
+				time.Sleep(time.Duration(retryCount*BackoffTime) * time.Second)
+				continue
+			}
+			return "", err
+		}
+
+		//update cache once data is successfully translated
+		t.Lock()
+		t.cache[key] = out
+		t.Unlock()
+
+		return out, nil
 	}
 
-	//update cache once data is successfully translated
-	t.Lock()
-	t.cache[key] = out
-	t.Unlock()
-
-	return out, nil
 }
 
 // generates a md5 hash with from,to language and data string
