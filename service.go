@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"golang.org/x/text/language"
 	"sync"
 	"time"
@@ -52,7 +53,6 @@ const (
 //this implements caching and retry mechanism
 //this is created just to avoid changing the main.go file
 func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag, data string) (string, error) {
-
 	key := getTranslateKey(from.String(), to.String(), data)
 
 	//check if same query exist in cache
@@ -63,9 +63,14 @@ func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag
 
 	retryCount := 0
 
+	requestGroup := singleflight.Group{}
+
 	for {
 		//call translate service if query is not found in cache
-		out, err := t.Translator.Translate(ctx, from, to, data)
+		out, err, _ := requestGroup.Do(key, func() (interface{}, error) {
+			return t.Translator.Translate(ctx, from, to, data)
+		})
+
 		if err != nil {
 			//retry for max number of times
 			if retryCount < MaxRetries {
@@ -79,10 +84,11 @@ func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag
 
 		//update cache once data is successfully translated
 		t.Lock()
-		t.cache[key] = out
+		translatedString := out.(string)
+		t.cache[key] = translatedString // we know that out is translated string
 		t.Unlock()
 
-		return out, nil
+		return translatedString, nil
 	}
 
 }

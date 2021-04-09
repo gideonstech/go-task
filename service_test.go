@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/language"
+	"sync"
 	"testing"
 	"time"
 )
@@ -58,4 +59,21 @@ func TestTranslatorService_Translate(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestTranslatorService_DeDuplicateTranslate(t *testing.T) {
+	ts := NewTranslatorService(newRandomTranslator(
+		100*time.Millisecond,
+		500*time.Millisecond,
+		0.0))
+
+	wg := sync.WaitGroup{}
+	wg.Add(5)
+	for i := 0; i < 5; i++ {
+		go func() {
+			ts.Translate(context.Background(), language.Afrikaans, language.English, "testdata")
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
