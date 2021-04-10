@@ -65,7 +65,7 @@ func TestTranslatorService_DeDuplicateTranslate(t *testing.T) {
 	ts := NewTranslatorService(newRandomTranslator(
 		100*time.Millisecond,
 		500*time.Millisecond,
-		0.0))
+		1.0))
 
 	wg := sync.WaitGroup{}
 	wg.Add(5)

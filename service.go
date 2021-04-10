@@ -49,6 +49,8 @@ const (
 	BackoffTime = 2
 )
 
+var requestGroup = singleflight.Group{}
+
 // Translate is a wrapper method around translation service
 //this implements caching and retry mechanism
 //this is created just to avoid changing the main.go file
@@ -62,8 +64,6 @@ func (t *TranslatorService) Translate(ctx context.Context, from, to language.Tag
 	}
 
 	retryCount := 0
-
-	requestGroup := singleflight.Group{}
 
 	for {
 		//call translate service if query is not found in cache
