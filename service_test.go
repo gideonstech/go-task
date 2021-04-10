@@ -61,6 +61,11 @@ func TestTranslatorService_Translate(t *testing.T) {
 	}
 }
 
+// i found no way to assert the deduplication logic, since i cant change the method signature
+// for translate to return if the requests are shared. I validated the deduplication by simply adding
+// a log in the Translate method in translator.go (I have removed it now). The Translate method in translator.go
+// is called for only 5 times even when all 5 requests will fail and will be retried for 5 times
+// (so in total 25 times the method should be called with deduplication only 5 times the Translate method is invoked)
 func TestTranslatorService_DeDuplicateTranslate(t *testing.T) {
 	ts := NewTranslatorService(newRandomTranslator(
 		100*time.Millisecond,
